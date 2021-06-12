@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Module with command line args",
+            "type": "python",
+            "request": "launch",
+            "module": "aphiasync",
+            "args": ["-i", "1514084"]
+        },
+        {
+            "name": "Module",
+            "type": "python",
+            "request": "launch",
+            "module": "aphiasync"
+        }
+    ]
+}
