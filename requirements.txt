@@ -3,3 +3,4 @@ pyworms==0.2.0
 requests==2.23.0
 termcolor==1.1.0
 python-dotenv==0.15.0
+-e git+git@github.com:iobis/pyworms.git#egg=pyworms
