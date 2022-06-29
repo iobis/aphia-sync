@@ -94,7 +94,7 @@ class OBISConnector:
         self.cur.execute("""
             select id from obis.aphia
             where record::text != 'null' and (last_checked is null or last_checked < now() - interval '5 days') 
-            order by needs_update desc nulls last, id desc
+            order by needs_update desc nulls last, random()
         """)
         ids = [id[0] for id in self.cur.fetchall()]
         return ids
