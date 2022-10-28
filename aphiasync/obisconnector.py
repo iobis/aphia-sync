@@ -7,6 +7,7 @@ import pyworms
 import os
 from dotenv import load_dotenv
 from aphiasync.aphiainfo import AphiaInfo
+import sys
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
@@ -34,7 +35,12 @@ class OBISConnector:
         info_db = self.fetch_aphia_obis(aphiaid)
         info_api = self.fetch_aphia_api(aphiaid)
 
-        if info_db != info_api:
+        if info_api is not None and info_db != info_api:
+
+            # WoRMS bug
+            if info_api.record is not None and info_api.record["rank"] is None and info_db.record["rank"] is not None:
+                logger.warn(colored("No rank for: ", str(info_db), "red"))
+                return
 
             self.update(aphiaid, info_api)
             logger.info(str(aphiaid) + " " + colored(info_api.record["scientificname"], "green"))
@@ -45,7 +51,7 @@ class OBISConnector:
                 assert aphiaid != parent_id
                 self.check(parent_id)
 
-        else:
+        elif info_api.record is not None:
             logger.info(str(aphiaid) + " " + colored(info_api.record["scientificname"], "white"))
 
         self.set_checked(aphiaid)
