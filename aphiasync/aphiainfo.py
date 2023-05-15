@@ -12,13 +12,13 @@ class AphiaInfo:
         self.ncbi_id = ncbi_id
 
     def __str__(self):
-        return json.dumps([
-            cleanup_dict(self.record),
-            cleanup_dict(self.classification),
-            self.distribution,
-            self.bold_id,
-            self.ncbi_id
-        ], sort_keys=True)
+        return json.dumps({
+            "record": cleanup_dict(self.record),
+            "classification": cleanup_dict(self.classification),
+            "distribution": self.distribution,
+            "bold_id": self.bold_id,
+            "ncbi_id": self.ncbi_id
+        }, sort_keys=True)
 
     def __eq__(self, other):
         return str(self) == str(other)

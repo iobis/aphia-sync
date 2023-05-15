@@ -13,6 +13,16 @@
             "type": "python",
             "request": "launch",
             "module": "aphiasync"
-        }
+        },
+        {
+            "name": "Python: develop",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/dev.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceRoot}",
+            "env": {"PYTHONPATH": "${workspaceRoot}"}
+        },
     ]
 }

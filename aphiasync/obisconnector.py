@@ -7,11 +7,13 @@ import pyworms
 import os
 from dotenv import load_dotenv
 from aphiasync.aphiainfo import AphiaInfo
-import sys
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
+
+
+APHIA_TABLE = os.getenv("APHIA_TABLE")
 
 
 class OBISConnector:
@@ -58,14 +60,14 @@ class OBISConnector:
 
     def fetch_aphia_obis(self, aphiaid):
         """Fetch the different records for an AphiaID from the OBIS database."""
-        self.cur.execute("""
+        self.cur.execute(f"""
             select
                 record,
                 classification,
                 distribution,
                 bold_id,
                 ncbi_id
-            from obis.aphia
+            from obis.{APHIA_TABLE}
             where id = %s
         """ % aphiaid)
         res = self.cur.fetchone()
@@ -89,16 +91,16 @@ class OBISConnector:
 
     def set_checked(self, aphiaid):
         """Update the checked date for an aphia record."""
-        self.cur.execute("""
-            update obis.aphia
+        self.cur.execute(f"""
+            update obis.{APHIA_TABLE}
             set last_checked = now(), needs_update = null
             where id = %s
         """ % aphiaid)
 
     def get_stale_ids(self):
         """Get all AphiaIDs that have not been checked in the last 5 days."""
-        self.cur.execute("""
-            select id from obis.aphia
+        self.cur.execute(f"""
+            select id from obis.{APHIA_TABLE}
             where record::text != 'null' and (last_checked is null or last_checked < now() - interval '5 days') 
             order by needs_update desc nulls last, random()
         """)
@@ -107,20 +109,23 @@ class OBISConnector:
 
     def update(self, aphiaid, aphia_info):
         """Update an aphia record in OBIS."""
-        self.cur.execute("""
-            insert into obis.aphia
+
+        assert aphia_info.record["rank"] is not None
+
+        self.cur.execute(f"""
+            insert into obis.{APHIA_TABLE}
                 (id, record, classification, distribution, bold_id, ncbi_id, created, updated)
             values
                 (%(id)s, %(record)s, %(classification)s, %(distribution)s, %(bold_id)s, %(ncbi_id)s, %(now)s, %(now)s)
-            on conflict (id) do update 
-            set 
+            on conflict (id) do update
+            set
                 record = %(record)s,
                 classification = %(classification)s,
                 distribution = %(distribution)s,
                 bold_id = %(bold_id)s,
                 ncbi_id = %(ncbi_id)s,
                 updated = %(now)s
-            where aphia.id = %(id)s
+            where {APHIA_TABLE}.id = %(id)s
         """, {
             "id": aphiaid,
             "record": psycopg2.extras.Json(aphia_info.record),
@@ -130,3 +135,19 @@ class OBISConnector:
             "ncbi_id": aphia_info.ncbi_id,
             "now": datetime.datetime.now()
         })
+
+    def get_missing_ids(self):
+        """Get all missing parent or valid IDs."""
+        self.cur.execute(f"""
+            select
+                a1.id,
+                a1.record->>'valid_AphiaID' as valid,
+                a2.id as valid_found,
+                a1.record->>'parentNameUsageID' as parent,
+                a3.id as parent_found
+            from {APHIA_TABLE} a1
+            left join {APHIA_TABLE} a2 on a2.id = cast(a1.record->>'valid_AphiaID' as int)
+            left join {APHIA_TABLE} a3 on a3.id = cast(a1.record->>'parentNameUsageID' as int)
+            where (a1.record->>'valid_AphiaID' is not null and a2.id is null) or (a1.record->>'parentNameUsageID' is not null and a3.id is null)
+        """)
+        return self.cur.fetchall()
