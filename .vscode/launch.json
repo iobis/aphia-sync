@@ -2,11 +2,26 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceRoot}",
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
+        },
+        {
             "name": "Module with command line args",
             "type": "python",
             "request": "launch",
             "module": "aphiasync",
-            "args": ["-i", "1071"]
+            "args": [
+                "-i",
+                "1071"
+            ]
         },
         {
             "name": "Module",
@@ -22,7 +37,21 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "cwd": "${workspaceRoot}",
-            "env": {"PYTHONPATH": "${workspaceRoot}"}
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
+        },
+        {
+            "name": "Python: create table",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/create_table.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceRoot}",
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
         },
     ]
 }

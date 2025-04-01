@@ -1,5 +1,7 @@
-psycopg2==2.8.6
+psycopg2==2.9.7
 requests==2.23.0
 termcolor==1.1.0
 python-dotenv==0.15.0
--e git+git@github.com:iobis/pyworms.git#egg=pyworms
+deepdiff
+pygnparser
+-e git+https://github.com/iobis/pyworms.git#egg=pyworms

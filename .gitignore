@@ -5,4 +5,5 @@ build
 *.egg-info
 *.pyc
 .env
-
+data
+src

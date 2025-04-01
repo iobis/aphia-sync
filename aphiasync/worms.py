@@ -3,20 +3,20 @@ import os
 import re
 
 
-RANKS = ["superdomain", "domain", "kingdom", "subkingdom", "infrakingdom", "superphylum", "phylum", "phylum (division)", "subphylum", "subphylum (subdivision)", "infraphylum", "parvphylum", "gigaclass", "megaclass", "superclass", "class", "subclass", "infraclass", "subterclass", "superorder", "order", "suborder", "infraorder", "parvorder", "section", "subsection", "superfamily", "epifamily", "family", "subfamily", "supertribe", "tribe", "subtribe", "genus", "subgenus", "series", "species", "subspecies", "natio", "variety", "subvariety", "forma", "subforma", "mutatio"]
+RANKS = ["superdomain", "domain", "kingdom", "subkingdom", "infrakingdom", "superphylum", "phylum", "phylum (division)", "subphylum", "subphylum (subdivision)", "infraphylum", "parvphylum", "gigaclass", "megaclass", "superclass", "class", "subclass", "infraclass", "subterclass", "superorder", "order", "suborder", "infraorder", "parvorder", "section", "subsection", "superfamily", "epifamily", "family", "subfamily", "supertribe", "tribe", "subtribe", "genus", "subgenus", "series", "subseries", "species", "subspecies", "natio", "variety", "subvariety", "forma", "subforma", "mutatio"]
 RANK_FIELDS = RANKS + [rank + "id" for rank in RANKS]
 CLASSIFICATION_FIELDS = RANK_FIELDS + ["parentNameUsage", "parentNameUsageID"]
 RECORD_FIELDS = ["taxonRankID", "isBrackish", "valid_authority", "modified", "lsid", "genus", "AphiaID", "citation", "kingdom", "isFreshwater", "isExtinct", "class", "status", "valid_name", "url", "match_type", "isTerrestrial", "family", "rank", "isMarine", "order", "scientificname", "unacceptreason", "phylum", "parentNameUsageID", "authority", "valid_AphiaID"]
 
 
-def build_worms_map():
+def build_worms_map(export_path: str):
 
     worms_map = dict()
     parents_map = {rank: {} for rank in RANKS}
 
     # read taxon table and create parent-child map
 
-    with open(os.path.join(os.getenv("WORMS_EXPORT"), "taxon.txt")) as csvfile:
+    with open(os.path.join(export_path, "taxon.txt")) as csvfile:
         reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
 
@@ -32,6 +32,10 @@ def build_worms_map():
             taxon_id = re.search("urn:lsid:marinespecies.org:taxname:([0-9]+)", row["taxonID"]).group(1)
             obj["url"] = f"https://www.marinespecies.org/aphia.php?p=taxdetails&id={taxon_id}"
             obj["AphiaID"] = int(taxon_id)
+
+            if taxon_rank is not None and "." in taxon_rank:
+                continue
+
             if taxon_rank is not None:
                 clean_rank = taxon_rank.lower().replace(" (division)", "").replace(" (subdivision)", "")
                 obj[clean_rank] = row["scientificName"]
@@ -74,10 +78,12 @@ def build_worms_map():
 
     # add flags
 
-    with open(os.path.join(os.getenv("WORMS_EXPORT"), "speciesprofile.txt")) as csvfile:
+    with open(os.path.join(export_path, "speciesprofile.txt")) as csvfile:
         reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
             taxon_id = re.search("urn:lsid:marinespecies.org:taxname:([0-9]+)", row["taxonID"]).group(1)
+            if taxon_id not in worms_map:
+                continue
             worms_map[taxon_id]["isMarine"] = int(row["isMarine"]) if row["isMarine"] != "" else None
             worms_map[taxon_id]["isBrackish"] = int(row["isBrackish"]) if row["isBrackish"] != "" else None
             worms_map[taxon_id]["isFreshwater"] = int(row["isFreshwater"]) if row["isFreshwater"] != "" else None
