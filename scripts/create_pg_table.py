@@ -3,14 +3,14 @@ from aphiasync.aphiainfo import AphiaInfo
 from aphiasync import sync_dict
 from dotenv import load_dotenv
 from aphiasync.worms import build_worms_map, CLASSIFICATION_FIELDS, RECORD_FIELDS
-from aphiasync.util import update_hab, update_wrims, update_redlist, update_external
+from aphiasync.util import update_hab, update_wrims, update_redlist_by_name, update_external
 import json
 import os
 import psycopg2
 
 
 load_dotenv()
-APHIA_TABLE = "aphia_20250310"
+APHIA_TABLE = "aphia_dev"
 BATCH_SIZE = 10000
 conn = psycopg2.connect(
     "host='%s' dbname='%s' user='%s' password='%s' options='-c statement_timeout=%s'" %
@@ -19,16 +19,16 @@ conn = psycopg2.connect(
 cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 
-worms_map_1 = build_worms_map("/Users/pieter/Desktop/temp/WoRMS_OBIS")
-worms_map_2 = build_worms_map("/Users/pieter/Desktop/temp/WoRMS_DwC-A")
+worms_map_1 = build_worms_map("/Volumes/acasis/worms/WoRMS_OBIS")
+worms_map_2 = build_worms_map("/Volumes/acasis/worms/WoRMS_DwC-A")
 
 for key in worms_map_2:
     worms_map_1[key] = worms_map_2[key]
 
-update_hab(worms_map_1, "/Users/pieter/Desktop/temp/WoRMS_OBIS_HAB")
-update_wrims(worms_map_1, "/Users/pieter/Desktop/temp/WoRMS_WRiMS")
-update_redlist(worms_map_1, "/Users/pieter/Desktop/temp/redlist.tsv")
-update_external(worms_map_1, "/Users/pieter/Desktop/temp/external.tsv")
+update_redlist_by_name(worms_map_1, "data/redlist.tsv")
+update_hab(worms_map_1, "/Volumes/acasis/worms/WoRMS_OBIS_HAB")
+update_wrims(worms_map_1, "/Volumes/acasis/worms/WoRMS_WRiMS")
+update_external(worms_map_1, "data/external.tsv")
 
 
 def int_if_not_none(value):

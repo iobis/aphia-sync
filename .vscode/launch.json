@@ -30,7 +30,7 @@
             "module": "aphiasync"
         },
         {
-            "name": "Python: develop",
+            "name": "Python: dev",
             "type": "python",
             "request": "launch",
             "program": "scripts/dev.py",

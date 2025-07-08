@@ -42,13 +42,23 @@ def update_redlist(worms_map, export_path):
                 worms_map[taxon_id]["redlist_category"] = redlist_category
 
 
+def update_redlist_by_name(worms_map, export_path):
+    with open(export_path) as csvfile:
+        redlist_map = {}
+        reader = csv.DictReader(csvfile, delimiter="\t")
+        for row in reader:
+            redlist_map[row["species"]] = row["category"]
+        for taxonid in worms_map:
+            if worms_map[taxonid]["scientificname"] in redlist_map:
+                worms_map[taxonid]["redlist_category"] = redlist_map[worms_map[taxonid]["scientificname"]]
+
 def update_external(worms_map, export_path):
     with open(export_path) as csvfile:
         reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
             taxon_id = row["id"]
-            ncbi_id = row["ncbi_id"]
-            bold_id = row["bold_id"]
             if taxon_id in worms_map:
-                worms_map[taxon_id]["ncbi_id"] = ncbi_id
-                worms_map[taxon_id]["bold_id"] = bold_id
+                if row["ncbi_id"]:
+                    worms_map[taxon_id]["ncbi_id"] = row["ncbi_id"]
+                if row["bold_id"]:
+                    worms_map[taxon_id]["bold_id"] = row["bold_id"]
