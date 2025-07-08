@@ -57,7 +57,7 @@ matched = match(names)
 print(pprint.pp(matched, indent=2, depth=2))
 ```
 
-```json
+```txt
 { 'Abra (Abra) Lamarck, 1818': {'aphiaid': 1660648, 'record': {...}},
   'Abra alva': {'aphiaid': None},
   'Paridotea munda Nunomura, 1988': {'aphiaid': 325572, 'record': {...}},
