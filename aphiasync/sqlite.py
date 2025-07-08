@@ -111,4 +111,4 @@ def match(names: list[str]):
 
     con.close()
 
-    print("ok")
+    return taxa
