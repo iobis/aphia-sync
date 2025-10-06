@@ -42,10 +42,22 @@
             }
         },
         {
-            "name": "Python: create table",
+            "name": "Python: create_pg_table",
             "type": "python",
             "request": "launch",
-            "program": "scripts/create_table.py",
+            "program": "scripts/create_pg_table.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceRoot}",
+            "env": {
+                "PYTHONPATH": "${workspaceRoot}"
+            }
+        },
+        {
+            "name": "Python: parse_worms_to_sqlite",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/parse_worms_to_sqlite.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "cwd": "${workspaceRoot}",

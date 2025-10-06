@@ -50,6 +50,6 @@ def make_map_and_import(source_path: str, sqlite_path: str, table_name: str = "p
 
 
 # Before running: download OBIS and GBIF WoRMS exports, check other tables in case of decoration
-db_path = "/Volumes/acasis/worms/worms_draft_20250707.db"
+db_path = "/Volumes/acasis/worms/worms_draft_20250911.db"
 make_map_and_import("/Volumes/acasis/worms/WoRMS_DwC-A", db_path, decorate=True)  # GBIF export
 make_map_and_import("/Volumes/acasis/worms/WoRMS_OBIS", db_path, decorate=True)  # OBIS export

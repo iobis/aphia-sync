@@ -130,6 +130,8 @@ CREATE INDEX ix_{APHIA_TABLE}_superorderid ON obis.{APHIA_TABLE} USING btree (((
 CREATE INDEX ix_{APHIA_TABLE}_supertribeid ON obis.{APHIA_TABLE} USING btree (((classification ->> 'supertribeid'::text)));
 CREATE INDEX ix_{APHIA_TABLE}_tribeid ON obis.{APHIA_TABLE} USING btree (((classification ->> 'tribeid'::text)));
 CREATE INDEX ix_{APHIA_TABLE}_varietyid ON obis.{APHIA_TABLE} USING btree (((classification ->> 'varietyid'::text)));
+CREATE INDEX ix_{APHIA_TABLE}_parent ON obis.{APHIA_TABLE} USING btree (((classification ->> 'parentNameUsageID'::text)));
+CREATE INDEX ix_{APHIA_TABLE}_scientificname_pattern ON obis.{APHIA_TABLE} USING gin ((record->>'scientificname') gin_trgm_ops);
 """)
 
 conn.commit();
