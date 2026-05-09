@@ -21,7 +21,7 @@ The different scripts on this repository rely on a function `aphiasync.worms.bui
 
 ## PostgreSQL table
 
-To create a PostgreSQL table in the OBIS database, use `scripts/create_pg_table.py`. Make sure to update the table name and data sources.
+To create a PostgreSQL table in the OBIS database, use `scripts/create_postgres.py`. Make sure to update the table name and data sources.
 
 Swap tables:
 
@@ -34,7 +34,7 @@ COMMIT;
 
 ## SQLite database
 
-To create the SQLite database for taxon matching, use `scripts/parse_worms_to_sqlite`. This uses <https://github.com/gnames/gnparser> to add the canonical name for each record.
+To create the SQLite database for taxon matching, use `scripts/create_sqlite`. This uses <https://github.com/gnames/gnparser> to add the canonical name for each record.
 
 Upload:
 
