@@ -19,11 +19,10 @@ conn = psycopg2.connect(
 cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
 
-worms_map_1 = build_worms_map("/Volumes/acasis/worms/WoRMS_OBIS")
-worms_map_2 = build_worms_map("/Volumes/acasis/worms/WoRMS_DwC-A")
-
-for key in worms_map_2:
-    worms_map_1[key] = worms_map_2[key]
+worms_map_1 = build_worms_map([
+    "/Volumes/acasis/worms/WoRMS_OBIS",
+    "/Volumes/acasis/worms/WoRMS_DwC-A",
+])
 
 update_redlist_by_name(worms_map_1, "data/redlist.tsv")
 update_hab(worms_map_1, "/Volumes/acasis/worms/WoRMS_OBIS_HAB")

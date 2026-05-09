@@ -13,16 +13,8 @@ def int_if_not_none(value):
     return int(value) if value is not None and value != "" else None
 
 
-def make_map_and_import(source_path: str, sqlite_path: str, table_name: str = "parsed", decorate: bool = False):
-    """Build a map of WoRMS IDs and records from a specific source, parse the name, and load into sqlite."""
-
-    worms_map = build_worms_map(source_path)
-    if decorate:
-        update_redlist_by_name(worms_map, "data/redlist.tsv")
-        update_hab(worms_map, "/Volumes/acasis/worms/WoRMS_OBIS_HAB")
-        update_wrims(worms_map, "/Volumes/acasis/worms/WoRMS_WRiMS")
-        update_external(worms_map, "data/external.tsv")
-    
+def import_map_to_sqlite(worms_map, sqlite_path: str, table_name: str = "parsed", decorate: bool = False):
+    """Parse scientific names and load the final WoRMS map into sqlite."""
     conn = sqlite3.connect(sqlite_path)
     c = conn.cursor()
     c.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (aphiaid INT PRIMARY KEY, valid_aphiaid INT, canonical TEXT, authorship TEXT, record TEXT, ncbi_id INT, bold_id INT)")
@@ -35,7 +27,7 @@ def make_map_and_import(source_path: str, sqlite_path: str, table_name: str = "p
         parsed_str = parse_to_string(original, "compact", None, 1, 1)
         parsed = json.loads(parsed_str)
         result = (aphiaid, valid_aphiaid, parsed.get("canonical", {}).get("full", None), parsed.get("authorship", {}).get("normalized", None), json.dumps(record), int_if_not_none(record.get("ncbi_id")), int_if_not_none(record.get("bold_id")))
-        print(f"\rInserting into {table_name}: {aphiaid} ({index} / {len(worms_map)}) from {source_path}", end="", flush=True)
+        print(f"\rInserting into {table_name}: {aphiaid} ({index} / {len(worms_map)})", end="", flush=True)
 
         c.execute(f"INSERT OR REPLACE INTO {table_name} (aphiaid, valid_aphiaid, canonical, authorship, record, ncbi_id, bold_id) VALUES (?, ?, ?, ?, ?, ?, ?)", result)
         conn.commit()
@@ -46,10 +38,21 @@ def make_map_and_import(source_path: str, sqlite_path: str, table_name: str = "p
         c.execute(f"CREATE INDEX IF NOT EXISTS bold_index ON {table_name} (bold_id)")
     conn.commit()
     conn.close()
-    print(f"\nFinished inserting from {source_path}", flush=True)
+    print("\nFinished inserting final merged map", flush=True)
 
 
 # Before running: download OBIS and GBIF WoRMS exports, check other tables in case of decoration
+
 db_path = "/Volumes/acasis/worms/worms_draft_20250911.db"
-make_map_and_import("/Volumes/acasis/worms/WoRMS_DwC-A", db_path, decorate=True)  # GBIF export
-make_map_and_import("/Volumes/acasis/worms/WoRMS_OBIS", db_path, decorate=True)  # OBIS export
+sources = [
+    "/Volumes/acasis/worms/WoRMS_DwC-A",  # GBIF export
+    "/Volumes/acasis/worms/WoRMS_OBIS",  # OBIS export
+]
+worms_map = build_worms_map(sources)
+
+update_redlist_by_name(worms_map, "data/redlist.tsv")
+update_hab(worms_map, "/Volumes/acasis/worms/WoRMS_OBIS_HAB")
+update_wrims(worms_map, "/Volumes/acasis/worms/WoRMS_WRiMS")
+update_external(worms_map, "data/external.tsv")
+
+import_map_to_sqlite(worms_map, db_path, decorate=True)

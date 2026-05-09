@@ -9,8 +9,19 @@ CLASSIFICATION_FIELDS = RANK_FIELDS + ["parentNameUsage", "parentNameUsageID"]
 RECORD_FIELDS = ["taxonRankID", "isBrackish", "valid_authority", "modified", "lsid", "genus", "AphiaID", "citation", "kingdom", "isFreshwater", "isExtinct", "class", "status", "valid_name", "url", "match_type", "isTerrestrial", "family", "rank", "isMarine", "order", "scientificname", "unacceptreason", "phylum", "parentNameUsageID", "authority", "valid_AphiaID"]
 
 
-def build_worms_map(export_path: str):
+def build_worms_map(export_paths: list[str]):
+    """Load one or more WoRMS export directories. Later exports overwrite earlier ones on the same Aphia ID."""
+    if not export_paths:
+        raise ValueError("export_paths must contain at least one path")
+    worms_map: dict = {}
+    for export_path in export_paths:
+        current = build_worms_map_from_export(export_path)
+        for key, value in current.items():
+            worms_map[key] = value
+    return worms_map
 
+
+def build_worms_map_from_export(export_path: str):
     worms_map = dict()
     parents_map = {rank: {} for rank in RANKS}
 
