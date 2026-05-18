@@ -5,11 +5,9 @@ import datetime
 from termcolor import colored
 import pyworms
 import os
-from dotenv import load_dotenv
 from aphiasync.aphiainfo import AphiaInfo
 
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +17,6 @@ APHIA_TABLE = os.getenv("APHIA_TABLE")
 class OBISConnector:
 
     def __init__(self):
-        load_dotenv()
         self._logger = logging.getLogger(__name__)
         self.conn = psycopg2.connect(
             "host='%s' dbname='%s' user='%s' password='%s' options='-c statement_timeout=%s'" %

@@ -1,9 +1,16 @@
 import argparse
 import logging
+from dotenv import load_dotenv
 from termcolor import colored
-from aphiasync import get_obis_connector, scan
+from aphiasync.sync import get_obis_connector, scan
 
 
+load_dotenv()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 logger = logging.getLogger("aphiasync")
 
 parser = argparse.ArgumentParser()
