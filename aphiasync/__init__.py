@@ -4,7 +4,6 @@ import datetime
 from termcolor import colored
 import time
 from aphiasync.aphiainfo import AphiaInfo
-from aphiasync.obisconnector import OBISConnector
 import os
 from dotenv import load_dotenv
 from aphiasync.worms import build_worms_map, CLASSIFICATION_FIELDS, RECORD_FIELDS
@@ -16,17 +15,28 @@ import json
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger("aphiasync")
-obis_connector = OBISConnector()
+
+_obis_connector = None
+
+
+def get_obis_connector():
+    """Return the shared OBISConnector, connecting to Postgres on first use only."""
+    global _obis_connector
+    if _obis_connector is None:
+        from aphiasync.obisconnector import OBISConnector
+
+        _obis_connector = OBISConnector()
+    return _obis_connector
 
 
 def scan(repeat=False, max_names=None):
     while True:
-        ids = obis_connector.get_stale_ids()
+        ids = get_obis_connector().get_stale_ids()
         if max_names is not None:
             ids = ids[:max_names]
         logger.info(colored("Processing %s IDs" % (len(ids)), "green"))
         for aphiaid in ids:
-            obis_connector.check(aphiaid)
+            get_obis_connector().check(aphiaid)
             time.sleep(int(os.getenv("API_INTERVAL")))
         if repeat is False:
             break
@@ -42,7 +52,7 @@ def do_fill(worms_map):
     retries = 10
 
     while True:
-        missing = obis_connector.get_missing_ids()
+        missing = get_obis_connector().get_missing_ids()
         logger.info(colored(f"Processing {len(missing)} missing IDs", "green"))
         if len(missing) == 0 or retries < 1:
             break
@@ -58,7 +68,7 @@ def do_fill(worms_map):
                 obj = worms_map[aphiaid]
                 sync_dict(info.record, obj, RECORD_FIELDS)
                 sync_dict(info.classification, obj, CLASSIFICATION_FIELDS)
-                obis_connector.update(int(aphiaid), info)
+                get_obis_connector().update(int(aphiaid), info)
             if row["parent"] is not None and row["parent_found"] is None:
                 aphiaid = row["parent"]
                 if aphiaid not in worms_map:
@@ -68,7 +78,7 @@ def do_fill(worms_map):
                 obj = worms_map[aphiaid]
                 sync_dict(info.record, obj, RECORD_FIELDS)
                 sync_dict(info.classification, obj, CLASSIFICATION_FIELDS)
-                obis_connector.update(int(aphiaid), info)
+                get_obis_connector().update(int(aphiaid), info)
 
 
 def do_sync(worms_map, aphiaids, skip, dry_run=False):
@@ -80,7 +90,7 @@ def do_sync(worms_map, aphiaids, skip, dry_run=False):
         if skip is not None and int(aphiaid) < skip:
             continue
 
-        info_db = obis_connector.fetch_aphia_obis(aphiaid)
+        info_db = get_obis_connector().fetch_aphia_obis(aphiaid)
         if info_db is None:
             logger.warning(colored(f"No record found for {aphiaid}", "red"))
         else:
@@ -102,7 +112,7 @@ def do_sync(worms_map, aphiaids, skip, dry_run=False):
                 diff = str(DeepDiff(json.loads(str(info_db_copy)), json.loads(str(info_db))))
                 logger.info(colored(diff, "blue"))
                 if not dry_run:
-                    obis_connector.update(aphiaid, info_db)
+                    get_obis_connector().update(aphiaid, info_db)
 
 
 def bulk_update(sync=True, fill=True, aphiaids=None, skip=None, dry_run=False):
