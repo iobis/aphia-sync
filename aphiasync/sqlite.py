@@ -1,11 +1,11 @@
 import gnparser
 import json
-import sqlite3
 import os
+import sqlite3
 
 
 def sanitize_name(name: str) -> str:
-    return name.replace("#", "")
+    return name.replace("#", "").replace("_", " ").strip()
 
 
 def match(names: list[str]):

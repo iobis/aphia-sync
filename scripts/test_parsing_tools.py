@@ -3,10 +3,14 @@ import sqlite3
 import logging
 from termcolor import colored
 from gnparser import parse_to_string
+from aphiasync.sqlite import sanitize_name
 import json
 
 
 logging.basicConfig(level=logging.INFO)
+
+
+WORMS_DB_PATH = "data/worms_parsed.db"
 
 
 def match_with_worms(name: str):
@@ -19,12 +23,12 @@ def match_with_worms(name: str):
 
 
 def match_with_sqlite(name: str):
-    parsed_str = parse_to_string(name, "compact", None, 1, 1)
+    parsed_str = parse_to_string(sanitize_name(name), "compact", None, 1, 1)
     parsed = json.loads(parsed_str)
     canonical = parsed.get("canonical", None).get("full", None)
     authorship = parsed.get("authorship", {}).get("normalized", None)
 
-    con = sqlite3.connect("data/worms_parsed.db")
+    con = sqlite3.connect(WORMS_DB_PATH)
     con.row_factory = sqlite3.Row
     cur = con.cursor()
     cur.execute("SELECT * FROM parsed WHERE canonical = ?", (canonical,))
@@ -60,7 +64,8 @@ def check_names():
         "Paridotea munda",
         "Paridotea munda Hale, 1924",
         "Paridotea munda Nunomura, 1988",
-        "Ulva lactuca"
+        "Ulva lactuca",
+        "Emplectonema gracile_6230"
     ]:
 
         logging.info(colored(f"{name}", "green"))
