@@ -12,11 +12,12 @@ def match(names: list[str]):
 
     # sanitize
 
-    names = [sanitize_name(name) for name in names]
+    original_names = list(names)
+    sanitized_names = [sanitize_name(name) for name in original_names]
 
     # get all distinct names
 
-    distinct_names = list(set(names))
+    distinct_names = list(set(sanitized_names))
 
     # parse names into canonical and authorship
 
@@ -77,38 +78,44 @@ def match(names: list[str]):
 
     assert len(name_matches) == len(distinct_names)
 
-    # get valid matches for distinct names
+    # get valid matches for distinct sanitized names
 
-    taxa = {}
+    taxa_by_sanitized = {}
 
     for i in range(len(name_matches)):
         name = distinct_names[i]
         matches = name_matches[i]
         if matches is not None and len(matches) == 1:
-            taxa[name] = {
+            taxa_by_sanitized[name] = {
                 "aphiaid": int(matches[0]["aphiaid"])
             }
         else:
             valid_aphiaids = list(set([match["valid_aphiaid"] for match in matches]))
             if len(valid_aphiaids) == 1:
-                taxa[name] = {
+                taxa_by_sanitized[name] = {
                     "aphiaid": int(valid_aphiaids[0]) if valid_aphiaids[0] is not None else None
                 }
             else:
-                taxa[name] = {
+                taxa_by_sanitized[name] = {
                     "aphiaid": None
                 }
-    
+
     # add records from aphiaid
 
-    for taxon in taxa:
-        if taxa[taxon]["aphiaid"] is not None:
-            cur.execute("select * from parsed where aphiaid = ?", (taxa[taxon]["aphiaid"],))
+    for taxon in taxa_by_sanitized:
+        if taxa_by_sanitized[taxon]["aphiaid"] is not None:
+            cur.execute("select * from parsed where aphiaid = ?", (taxa_by_sanitized[taxon]["aphiaid"],))
             res = cur.fetchone()
             if res is not None:
                 record = json.loads(res["record"])
-                taxa[taxon]["record"] = record
+                taxa_by_sanitized[taxon]["record"] = record
 
     con.close()
+
+    taxa = {}
+    for original, sanitized in zip(original_names, sanitized_names):
+        taxa[original] = taxa_by_sanitized.get(
+            sanitized, {"aphiaid": None}
+        )
 
     return taxa

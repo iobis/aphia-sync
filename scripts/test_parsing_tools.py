@@ -65,7 +65,8 @@ def check_names():
         "Paridotea munda Hale, 1924",
         "Paridotea munda Nunomura, 1988",
         "Ulva lactuca",
-        "Emplectonema gracile_6230"
+        "Emplectonema gracile_6230",
+        "Arthropoda_6656"
     ]:
 
         logging.info(colored(f"{name}", "green"))
