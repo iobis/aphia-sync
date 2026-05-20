@@ -18,7 +18,8 @@ names = [
     "Paridotea munda",
     "Paridotea munda Hale, 1924",
     "Paridotea munda Nunomura, 1988",
-    "Ulva lactuca"
+    "Ulva lactuca",
+    "Orca gladiator"
 ]
 matched = match(names)
 print(pprint.pp(matched, indent=2, depth=2))
