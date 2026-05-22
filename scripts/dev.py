@@ -7,6 +7,7 @@ load_dotenv()
 
 
 names = [
+    "Eukaryota 1234",
     "Abra alba",
     "Abra alba (W. Wood 1802)",
     "Abra alba W. Wood 1802",

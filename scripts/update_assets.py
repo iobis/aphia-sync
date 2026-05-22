@@ -1,8 +1,14 @@
 from dotenv import load_dotenv
-from aphiasync.worms import build_worms_map, export_to_sqlite, RANKS
+from aphiasync.aphiainfo import AphiaInfo
+from aphiasync.sync import sync_dict
+from aphiasync.worms import build_worms_map, export_to_sqlite, RANKS, CLASSIFICATION_FIELDS, RECORD_FIELDS
 from aphiasync.util import update_hab, update_wrims, update_redlist_by_name, update_external
 import copy
+import json
 import logging
+import os
+import psycopg2
+import psycopg2.extras
 from termcolor import colored
 
 
@@ -213,7 +219,10 @@ def merge_new_species_into_old_when_compatible(old_worms_map, new_worms_map):
       old backbone (see forbidden_replacements).
     - If not accepted in new: valid_AphiaID must refer to an accepted species in old_worms_map
       (including one added earlier in this same run; candidates are processed accepted-first).
+
+    Returns a dict of aphiaid str -> record to merge into the old map (does not mutate old_worms_map).
     """
+    additions = {}
     missing_any = [tid for tid in new_worms_map if tid not in old_worms_map]
     n_missing_any_rank = len(missing_any)
 
@@ -272,15 +281,19 @@ def merge_new_species_into_old_when_compatible(old_worms_map, new_worms_map):
                 continue
         else:
             vu = new_t.get("valid_AphiaID")
-            if vu is None or str(vu) not in old_worms_map:
+            if vu is None:
                 n_unaccepted_no_valid_in_old += 1
                 continue
-            anchor = old_worms_map[str(vu)]
+            anchor_key = str(vu)
+            anchor = additions.get(anchor_key) or old_worms_map.get(anchor_key)
+            if anchor is None:
+                n_unaccepted_no_valid_in_old += 1
+                continue
             if not is_species_rank(anchor) or not is_accepted_record(anchor):
                 n_unaccepted_valid_not_accepted_in_old += 1
                 continue
 
-        old_worms_map[tid] = copy.deepcopy(new_t)
+        additions[tid] = copy.deepcopy(new_t)
         added += 1
         if len(added_examples) < ADDED_SAMPLE_COUNT:
             added_examples.append(
@@ -312,37 +325,113 @@ def merge_new_species_into_old_when_compatible(old_worms_map, new_worms_map):
         forbidden_examples,
         lineage_mismatch_examples,
     )
+    return additions
 
 
-# Before running: download OBIS and GBIF WoRMS exports, check other tables in case of decoration
+POSTGRES_BATCH_SIZE = 10000
 
-# Old sources
 
-old_sources = [
-    "/Volumes/acasis/worms/WoRMS_DwC-A_20250911",
-    "/Volumes/acasis/worms/WoRMS_OBIS_20250911",
-]
-old_worms_map = build_worms_map(old_sources)
-update_redlist_by_name(old_worms_map, "data/redlist.tsv")
-update_hab(old_worms_map, "/Volumes/acasis/worms/WoRMS_OBIS_HAB_20250911")
-update_wrims(old_worms_map, "/Volumes/acasis/worms/WoRMS_WRiMS_20250911")
-update_external(old_worms_map, "data/external.tsv")
+def int_if_not_none(value):
+    return int(value) if value is not None and value != "" else None
 
-# New sources
 
-new_sources = [
-    "/Volumes/acasis/worms/WoRMS_DwC-A_20260509",
-    "/Volumes/acasis/worms/WoRMS_OBIS_20260509",
-]
-new_worms_map = build_worms_map(new_sources)
-update_redlist_by_name(new_worms_map, "data/redlist.tsv")
-update_hab(new_worms_map, "/Volumes/acasis/worms/WoRMS_OBIS_HAB_20250911")
-update_wrims(new_worms_map, "/Volumes/acasis/worms/WoRMS_WRiMS_20250911")
-update_external(new_worms_map, "data/external.tsv")
+def _worms_obj_to_aphia_row(aphiaid: str, obj: dict) -> dict:
+    """Same row shape as scripts/create_postgres.py."""
+    info = AphiaInfo({}, {}, None, None, None)
+    sync_dict(info.record, obj, RECORD_FIELDS)
+    sync_dict(info.classification, obj, CLASSIFICATION_FIELDS)
+    info.record["lsid"] = f"urn:lsid:marinespecies.org:taxname:{info.record['AphiaID']}"
+    return {
+        "id": int(aphiaid),
+        "record": json.dumps(info.record),
+        "classification": json.dumps(info.classification),
+        "wrims": obj.get("wrims"),
+        "hab": obj.get("hab"),
+        "redlist_category": obj.get("redlist_category"),
+        "bold_id": int_if_not_none(obj.get("bold_id")),
+        "ncbi_id": int_if_not_none(obj.get("ncbi_id")),
+    }
 
-merge_new_species_into_old_when_compatible(old_worms_map, new_worms_map)
 
-# Export
+def insert_additions_into_postgres(additions: dict, table: str, schema: str = "obis", batch_size: int = POSTGRES_BATCH_SIZE):
+    """Insert merge additions into an existing obis aphia table (e.g. a staging copy of production)."""
+    if not additions:
+        logging.info("No additions to insert into postgres")
+        return
 
-db_path = "/Volumes/acasis/worms/worms_draft_20260510.db"
-export_to_sqlite(old_worms_map, db_path)
+    insert_query = f"""
+        INSERT INTO {schema}.{table} (
+            id, record, classification, wrims, hab, redlist_category, bold_id, ncbi_id
+        ) VALUES (
+            %(id)s, %(record)s, %(classification)s, %(wrims)s, %(hab)s,
+            %(redlist_category)s, %(bold_id)s, %(ncbi_id)s
+        ) ON CONFLICT (id) DO UPDATE SET
+            record = EXCLUDED.record,
+            classification = EXCLUDED.classification,
+            wrims = EXCLUDED.wrims,
+            hab = EXCLUDED.hab,
+            redlist_category = EXCLUDED.redlist_category,
+            bold_id = EXCLUDED.bold_id,
+            ncbi_id = EXCLUDED.ncbi_id;
+    """
+
+    conn = psycopg2.connect(
+        "host='%s' dbname='%s' user='%s' password='%s' options='-c statement_timeout=%s'"
+        % (
+            os.getenv("DB_HOST"),
+            os.getenv("DB_DB"),
+            os.getenv("DB_USER"),
+            os.getenv("DB_PASSWORD"),
+            os.getenv("DB_TIMEOUT"),
+        )
+    )
+    cur = conn.cursor()
+    records = []
+    for index, aphiaid in enumerate(additions):
+        records.append(_worms_obj_to_aphia_row(aphiaid, additions[aphiaid]))
+        if len(records) >= batch_size:
+            psycopg2.extras.execute_batch(cur, insert_query, records)
+            records = []
+            logging.info("Inserted into %s.%s: %s / %s", schema, table, index + 1, len(additions))
+    if records:
+        psycopg2.extras.execute_batch(cur, insert_query, records)
+    conn.commit()
+    cur.close()
+    conn.close()
+    logging.info("Inserted %s rows into %s.%s", len(additions), schema, table)
+
+
+def main():
+    # Before running: download OBIS and GBIF WoRMS exports, check other tables in case of decoration
+
+    old_sources = [
+        "/Volumes/acasis/worms/WoRMS_DwC-A_20250911",
+        "/Volumes/acasis/worms/WoRMS_OBIS_20250911",
+    ]
+    old_worms_map = build_worms_map(old_sources)
+    update_redlist_by_name(old_worms_map, "data/redlist.tsv")
+    update_hab(old_worms_map, "/Volumes/acasis/worms/WoRMS_OBIS_HAB_20250911")
+    update_wrims(old_worms_map, "/Volumes/acasis/worms/WoRMS_WRiMS_20250911")
+    update_external(old_worms_map, "data/external.tsv")
+
+    new_sources = [
+        "/Volumes/acasis/worms/WoRMS_DwC-A_20260509",
+        "/Volumes/acasis/worms/WoRMS_OBIS_20260509",
+    ]
+    new_worms_map = build_worms_map(new_sources)
+    update_redlist_by_name(new_worms_map, "data/redlist.tsv")
+    update_hab(new_worms_map, "/Volumes/acasis/worms/WoRMS_OBIS_HAB_20250911")
+    update_wrims(new_worms_map, "/Volumes/acasis/worms/WoRMS_WRiMS_20250911")
+    update_external(new_worms_map, "data/external.tsv")
+
+    additions = merge_new_species_into_old_when_compatible(old_worms_map, new_worms_map)
+
+    # old_worms_map.update(additions)
+    # db_path = "/Volumes/acasis/worms/worms_draft_20260522.db"
+    # export_to_sqlite(old_worms_map, db_path)
+
+    insert_additions_into_postgres(additions, "aphia_staging")
+
+
+if __name__ == "__main__":
+    main()
